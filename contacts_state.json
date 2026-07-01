@@ -1,0 +1,24 @@
+{
+  "contacts": [
+    {
+      "id": "contact_001",
+      "name": "Test Contacto",
+      "phone": "+573016880127",
+      "status": "active",
+      "last_reply_ts": 0,
+      "last_msg_sent_ts": 0,
+      "msg_rotation_index": 0,
+      "no_reply_attempts": 0,
+      "notes": "Replace this with your real contacts. Add one object per contact."
+    }
+  ],
+  "run_log": [],
+  "meta": {
+    "created": "2026-06-25",
+    "phone_number": "+57 301 6880127",
+    "waba_id": "286199243415870",
+    "phone_number_id": "119440352708700",
+    "schedule_hours": 20,
+    "cost_per_msg_usd": 0.0125
+  }
+}

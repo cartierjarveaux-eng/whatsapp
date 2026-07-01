@@ -1,0 +1,37 @@
+name: Rica Pro 20hr WhatsApp Scheduler
+
+on:
+  schedule:
+    # Runs every hour at minute 0
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  send-scheduled-messages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run 20hr scheduler
+        env:
+          WA_TOKEN: ${{ secrets.WA_TOKEN }}
+          WA_PHONE_NUMBER_ID: ${{ secrets.WA_PHONE_NUMBER_ID }}
+        run: python scheduler.py
+
+      - name: Commit updated contact state
+        run: |
+          git config --global user.name 'Rica Pro Bot'
+          git config --global user.email 'ricaprovip@gmail.com'
+          git add contacts_state.json || true
+          git diff --staged --quiet || git commit -m "auto: scheduler run $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push || true
