@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rica Pro — Bulk WhatsApp Sender</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#0d0f12;--surface:#161a20;--surface2:#1e242c;--surface3:#252d38;
+    --border:#2a3240;--border2:#35404f;
+    --accent:#25d366;--accent-dim:#1a9e4a;--accent-glow:rgba(37,211,102,0.12);
+    --text:#e8edf2;--text2:#8a97a8;--text3:#4d5a6b;
+    --danger:#e05252;--warn:#e09c30;--info:#3b82f6;
+    --font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+    --radius:12px;--radius-sm:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);}
+  .logo-pill{display:flex;align-items:center;gap:8px;background:var(--accent-glow);border:1px solid var(--accent-dim);border-radius:20px;padding:4px 12px 4px 8px;}
+  .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+  .logo-text{font-size:13px;font-weight:600;color:var(--accent);}
+  .nav-link{font-size:13px;color:var(--text2);text-decoration:none;padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);}
+  .nav-link:hover{color:var(--accent);border-color:var(--accent-dim);}
+
+  .container{max-width:900px;margin:0 auto;padding:32px 24px;}
+  h1{font-size:22px;font-weight:600;margin-bottom:6px;}
+  .subtitle{font-size:13px;color:var(--text2);margin-bottom:32px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+  .card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;}
+
+  /* UPLOAD ZONE */
+  .upload-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface2);}
+  .upload-zone:hover,.upload-zone.drag{border-color:var(--accent-dim);background:var(--accent-glow);}
+  .upload-zone svg{margin-bottom:12px;color:var(--text3);}
+  .upload-zone p{font-size:13px;color:var(--text2);margin-bottom:4px;}
+  .upload-zone small{font-size:11px;color:var(--text3);}
+  #fileInput{display:none;}
+
+  /* STATS ROW */
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center;}
+  .stat-val{font-size:24px;font-weight:600;color:var(--text);font-family:var(--mono);}
+  .stat-val.green{color:var(--accent);}
+  .stat-val.yellow{color:var(--warn);}
+  .stat-val.red{color:var(--danger);}
+  .stat-label{font-size:11px;color:var(--text3);margin-top:4px;}
+
+  /* FORM */
+  .form-group{margin-bottom:16px;}
+  .form-label{font-size:12px;color:var(--text2);margin-bottom:6px;display:block;font-weight:500;}
+  .form-input,.form-select,.form-textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:13px;padding:10px 12px;outline:none;transition:border-color 0.15s;}
+  .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent-dim);}
+  .form-select option{background:var(--surface2);}
+  .form-textarea{resize:vertical;min-height:100px;line-height:1.6;}
+
+  /* PREVIEW */
+  .phone-preview{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:200px;overflow-y:auto;margin-top:16px;}
+  .phone-preview::-webkit-scrollbar{width:4px;}
+  .phone-preview::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+  .phone-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;font-family:var(--mono);}
+  .phone-row:last-child{border-bottom:none;}
+  .phone-status{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;}
+  .ps-pending{background:rgba(224,156,48,0.15);color:var(--warn);}
+  .ps-sent{background:rgba(37,211,102,0.15);color:var(--accent);}
+  .ps-error{background:rgba(224,82,82,0.15);color:var(--danger);}
+  .ps-skipped{background:rgba(77,90,107,0.2);color:var(--text3);}
+
+  /* PROGRESS */
+  .progress-wrap{display:none;margin-top:20px;}
+  .progress-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:8px;}
+  .progress-fill{height:100%;background:var(--accent);border-radius:4px;transition:width 0.3s;}
+  .progress-text{font-size:12px;color:var(--text2);display:flex;justify-content:space-between;}
+
+  /* LOG */
+  .log-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;max-height:220px;overflow-y:auto;font-family:var(--mono);font-size:11px;line-height:1.8;margin-top:12px;display:none;}
+  .log-box::-webkit-scrollbar{width:4px;}
+  .log-box::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+  .log-ok{color:var(--accent);}
+  .log-err{color:var(--danger);}
+  .log-info{color:var(--text3);}
+  .log-warn{color:var(--warn);}
+
+  /* BUTTONS */
+  .btn-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+  .btn{padding:10px 20px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:500;transition:all 0.15s;}
+  .btn-primary{background:var(--accent);color:#000;font-weight:600;}
+  .btn-primary:hover{background:#2eef75;}
+  .btn-primary:disabled{background:var(--surface3);color:var(--text3);cursor:not-allowed;}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border2);}
+  .btn-secondary:hover{background:var(--surface3);border-color:var(--accent-dim);}
+  .btn-danger{background:rgba(224,82,82,0.15);color:var(--danger);border:1px solid var(--danger);}
+  .btn-danger:hover{background:rgba(224,82,82,0.25);}
+
+  /* COST BOX */
+  .cost-box{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-top:16px;}
+  .cost-info{font-size:12px;color:var(--text2);}
+  .cost-amount{font-size:22px;font-weight:600;color:var(--accent);font-family:var(--mono);}
+
+  /* RATE LIMIT INFO */
+  .info-box{background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.3);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:#93c5fd;line-height:1.6;margin-top:12px;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;z-index:200;display:none;max-width:320px;}
+  .toast.show{display:block;}
+  .toast.success{border-color:var(--accent-dim);color:var(--accent);}
+  .toast.error{border-color:var(--danger);color:var(--danger);}
+
+  /* COLUMN MAPPER */
+  .col-mapper{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-top:12px;display:none;}
+  .col-mapper-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;}
+  .col-map-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px;}
+  .col-map-label{color:var(--text2);min-width:120px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-pill">
+    <div class="logo-dot"></div>
+    <span class="logo-text">Rica Pro — Bulk Sender</span>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <span style="font-family:var(--mono);font-size:11px;color:var(--text3);">+57 301 6880127</span>
+    <a href="index.html" class="nav-link">← Volver al CRM</a>
+  </div>
+</div>
+
+<div class="container">
+  <h1>📤 Bulk WhatsApp Sender</h1>
+  <div style="display:flex;align-items:center;gap:10px;background:rgba(37,211,102,0.08);border:1px solid var(--accent-dim);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;">
+    <span style="font-size:18px;">📱</span>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--accent);">Rica Pro — +57 301 6880127</div>
+      <div style="font-size:11px;color:var(--text2);">WABA: 286199243415870 · Phone Number ID: 1194403527087007 · Template: iso_whey</div>
+    </div>
+  </div>
+  <p class="subtitle">Sube tu Excel con números colombianos y envía templates masivos. Compatible con tu archivo SplitDec15Blast.xlsx</p>
+
+  <!-- STEP 1: UPLOAD -->
+  <div class="card">
+    <div class="card-title">Paso 1 — Subir archivo de contactos</div>
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p>Arrastra tu Excel aquí o haz clic para seleccionar</p>
+      <small>Compatible: .xlsx, .xls, .csv · Columna: TELEFONO con código de país (ej: 573001234567)</small>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+
+    <div class="col-mapper" id="colMapper">
+      <div class="col-mapper-title">Mapear columnas</div>
+      <div class="col-map-row">
+        <span class="col-map-label">Columna teléfono:</span>
+        <select class="form-select" id="phoneColSelect" style="flex:1;" onchange="remapContacts()"></select>
+      </div>
+      <div class="col-map-row">
+        <span class="col-map-label">Columna nombre (opcional):</span>
+        <select class="form-select" id="nameColSelect" style="flex:1;" onchange="remapContacts()">
+          <option value="">— Sin nombre —</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: STATS -->
+  <div id="statsSection" style="display:none;">
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-val" id="statTotal">0</div><div class="stat-label">Total contactos</div></div>
+      <div class="stat-box"><div class="stat-val green" id="statValid">0</div><div class="stat-label">Válidos</div></div>
+      <div class="stat-box"><div class="stat-val yellow" id="statSent">0</div><div class="stat-label">Enviados</div></div>
+      <div class="stat-box"><div class="stat-val red" id="statErrors">0</div><div class="stat-label">Errores</div></div>
+    </div>
+
+    <!-- PREVIEW TABLE -->
+    <div class="card">
+      <div class="card-title">Vista previa de contactos <span id="previewCount" style="color:var(--accent);font-family:var(--mono);"></span></div>
+      <div class="phone-preview" id="phonePreview"></div>
+    </div>
+
+    <!-- STEP 3: TEMPLATE -->
+    <div class="card">
+      <div class="card-title">Paso 2 — Seleccionar template</div>
+      <div class="form-group">
+        <label class="form-label">Template aprobado en Meta WhatsApp Manager</label>
+        <select class="form-select" id="templateSelect" onchange="updateTemplateName()">
+          <option value="iso_whey" selected>iso_whey — Colágeno $68.000 COP · Rica Pro ✅ ACTIVO</option>
+          <option value="custom">+ Escribir nombre de template manualmente</option>
+        </select>
+      </div>
+      <div class="form-group" id="customTemplateGroup" style="display:none;">
+        <label class="form-label">Nombre exacto del template en Meta</label>
+        <input type="text" class="form-input" id="customTemplateName" placeholder="ej: rica_pro_julio_2026">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Idioma del template</label>
+        <select class="form-select" id="langSelect">
+          <option value="es" selected>Español (es) ← iso_whey usa este</option>
+          <option value="es_CO">Español Colombia (es_CO)</option>
+          <option value="en_US">English US (en_US)</option>
+        </select>
+      </div>
+
+      <!-- TEMPLATE PARAMETERS -->
+      <div class="form-group" id="paramSection">
+        <label class="form-label">Parámetros del template <span style="color:var(--text3);font-weight:400;">({{1}}, {{2}}, etc. en el body)</span></label>
+        <div id="paramList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button class="btn btn-secondary" style="margin-top:8px;padding:6px 12px;font-size:12px;" onclick="addParam()">+ Agregar parámetro</button>
+        <button class="btn btn-secondary" style="margin-top:8px;padding:6px 12px;font-size:12px;margin-left:6px;" onclick="clearParams()">✕ Sin parámetros</button>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;">
+          Usa <code style="color:var(--accent);">{nombre}</code> para el primer nombre del contacto.
+          Ejemplo: si el template tiene <code style="color:var(--accent);">{{1}}</code> → agrega 1 parámetro.
+        </div>
+      </div>
+
+      <div class="info-box">
+        ⚡ <strong>Ventana de 24 horas:</strong> Cuando el contacto responda al template, se abre una ventana gratuita de 24 horas. El scheduler de tu CRM enviará mensajes gratis cada 20 horas dentro de esa ventana.<br><br>
+        💰 <strong>Costo:</strong> Solo pagas $0.0125 USD por el template inicial. Todos los mensajes de seguimiento son gratis.
+      </div>
+
+      <div class="cost-box">
+        <div>
+          <div class="cost-info">Costo estimado total</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">$0.0125 × <span id="costContacts">0</span> contactos válidos</div>
+        </div>
+        <div class="cost-amount" id="costAmount">$0.00</div>
+      </div>
+    </div>
+
+    <!-- STEP 4: API CONFIG -->
+    <div class="card">
+      <div class="card-title">Paso 3 — Configuración API</div>
+      <div class="form-group">
+        <label class="form-label">Access Token</label>
+        <input type="password" class="form-input" id="apiToken" placeholder="EAAIMAYm..." value="EAAIMAYmKJJkBR6AfkoSGfZAoUDbfX8TZCC5LHRPszdaizyLIw7Icx60SsCpYWaRYt009VAxf0fF83RIwI8RCeq62uEOVQ2NPGDIbus68SdJRvwltQUiZCaqP5JIp8Kf9D3jiCLpkzMKarUdYWpgugaOnvhZBfsUOTRYSfSZBJGit9x1pMotGaHS9V5LLdzjfIWAZDZD"><div style="font-size:11px;color:var(--accent);margin-top:4px;">✓ Rica Pro token cargado</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone Number ID</label>
+        <input type="text" class="form-input" id="phoneNumberId" value="1194403527087007"><div style="font-size:11px;color:var(--accent);margin-top:4px;">✓ Rica Pro · +57 301 6880127</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Velocidad de envío</label>
+        <select class="form-select" id="rateSelect">
+          <option value="500">Seguro — 1 mensaje cada 500ms (2/seg · recomendado)</option>
+          <option value="200">Rápido — 1 mensaje cada 200ms (5/seg)</option>
+          <option value="1000">Lento — 1 mensaje cada 1 seg (máx seguridad)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tamaño de lote</label>
+        <select class="form-select" id="batchSize" onchange="updateLoteSelector()">
+          <option value="1000" selected>1,000 contactos por lote</option>
+          <option value="2000">2,000 contactos por lote</option>
+          <option value="5000">5,000 contactos por lote</option>
+          <option value="all">Todos a la vez</option>
+        </select>
+      </div>
+      <div class="form-group" id="loteGroup">
+        <label class="form-label">¿Cuál lote enviar hoy?</label>
+        <select class="form-select" id="loteSelect" onchange="updateLoteInfo()">
+          <option value="0">Carga un archivo primero...</option>
+        </select>
+        <div style="margin-top:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--text2);display:flex;justify-content:space-between;align-items:center;">
+          <span id="loteInfo">—</span>
+          <span style="color:var(--accent);font-family:var(--mono);font-weight:600;" id="loteCost">$0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEND BUTTON -->
+    <div class="btn-row">
+      <button class="btn btn-primary" id="sendBtn" onclick="startSending()">
+        🚀 Lanzar campaña masiva
+      </button>
+      <button class="btn btn-secondary" onclick="testSingleContact()">
+        🧪 Probar con 1 contacto
+      </button>
+      <button class="btn btn-secondary" onclick="exportResults()">
+        📥 Exportar resultados
+      </button>
+      <button class="btn btn-danger" id="stopBtn" onclick="stopSending()" style="display:none;">
+        ⏹ Detener envío
+      </button>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-wrap" id="progressWrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:13px;font-weight:500;" id="progressTitle">Enviando...</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--accent);" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-text">
+        <span id="progressDetail">0 de 0 enviados</span>
+        <span id="progressETA">ETA: calculando...</span>
+      </div>
+      <div class="log-box" id="logBox"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────
+let contacts = [];
+let results  = [];
+let sending  = false;
+let stopFlag = false;
+let workbook = null;
+let columns  = [];
+
+// ── FILE HANDLING ─────────────────────────────────────────
+function dragOver(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag'); }
+function dragLeave(e) { document.getElementById('uploadZone').classList.remove('drag'); }
+function dropFile(e) {
+  e.preventDefault();
+  dragLeave(e);
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function handleFile(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+
+function processFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'csv') {
+    processCSV(file);
+  } else {
+    processXLSX(file);
+  }
+}
+
+function processCSV(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { showToast('CSV vacío', 'error'); return; }
+      
+      // Parse CSV properly handling commas in quotes
+      function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          if (line[i] === '"') { inQuotes = !inQuotes; }
+          else if (line[i] === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+          else { current += line[i]; }
+        }
+        result.push(current.trim());
+        return result;
+      }
+
+      const headers = parseCSVLine(lines[0]);
+      const rows = [headers];
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) rows.push(parseCSVLine(lines[i]));
+      }
+
+      columns = headers.map(String);
+      setupColumnMapper(columns);
+      parseContactsFromRows(rows);
+      document.getElementById('uploadZone').innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#25d366" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><p style="color:var(--accent);font-weight:500;">${file.name}</p><small style="color:var(--text3)">${rows.length-1} contactos detectados · haz clic para cambiar</small>`;
+    } catch(err) {
+      showToast('Error leyendo CSV: ' + err.message, 'error');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function setupColumnMapper(cols) {
+  const phoneSelect = document.getElementById('phoneColSelect');
+  const nameSelect = document.getElementById('nameColSelect');
+  phoneSelect.innerHTML = cols.map((c,i) => `<option value="${i}" ${c.toUpperCase().includes('TEL')||c.toUpperCase().includes('PHONE')||c.toUpperCase().includes('NUMERO')||c.toUpperCase().includes('WHATSAPP')?'selected':''}>${c}</option>`).join('');
+  nameSelect.innerHTML = '<option value="">— Sin nombre —</option>' + cols.map((c,i) => `<option value="${i}" ${c.toUpperCase().includes('NOMBRE')||c.toUpperCase().includes('NAME')?'selected':''}>${c}</option>`).join('');
+  document.getElementById('colMapper').style.display = 'block';
+}
+
+function processXLSX(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      // Use array buffer directly — most compatible method
+      workbook = XLSX.read(e.target.result, {type:'array'});
+      
+      // Handle multi-sheet files — combine all sheets or use first
+      let allRows = [];
+      let foundHeader = false;
+      let headerRow = null;
+
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:'', raw:false});
+        if (!rows || rows.length === 0) continue;
+        
+        // First sheet with data sets the header
+        if (!foundHeader) {
+          headerRow = rows[0];
+          foundHeader = true;
+          allRows = rows; // include header
+        } else {
+          // Subsequent sheets: skip their header row, just add data
+          // Only add if first column looks like a phone number
+          for (let i = 1; i < rows.length; i++) {
+            const val = String(rows[i][0] || '').replace(/\D/g,'');
+            if (val.length >= 8) allRows.push(rows[i]);
+          }
+        }
+      }
+
+      if (!allRows || allRows.length < 2) { 
+        showToast('Archivo vacío o sin datos válidos', 'error'); 
+        return; 
+      }
+
+      // Get column headers from first row
+      columns = allRows[0].map(String);
+      setupColumnMapper(columns);
+
+      // Parse contacts
+      parseContactsFromRows(allRows);
+
+      document.getElementById('uploadZone').innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#25d366" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><p style="color:var(--accent);font-weight:500;">${file.name}</p><small style="color:var(--text3)">${allRows.length-1} filas detectadas en ${workbook.SheetNames.length} hojas · haz clic para cambiar</small>`;
+    } catch(err) {
+      showToast('Error leyendo archivo: ' + err.message, 'error');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseContactsFromRows(rows) {
+  allStoredRows = rows;
+  const phoneColIdx = parseInt(document.getElementById('phoneColSelect').value) || 0;
+  const nameColIdx  = document.getElementById('nameColSelect').value;
+  
+  contacts = [];
+  for (let i = 1; i < rows.length; i++) {
+    const raw = String(rows[i][phoneColIdx] || '').replace(/\D/g,'').trim();
+    if (!raw || raw.length < 8) continue;
+    
+    // Normalize to international format
+    let phone = raw;
+    if (phone.length === 10 && phone.startsWith('3')) phone = '57' + phone; // Colombian mobile
+    if (phone.length === 12 && phone.startsWith('57')) {} // already correct
+    if (phone.startsWith('0057')) phone = phone.slice(2);
+    
+    const name = nameColIdx !== '' ? String(rows[i][parseInt(nameColIdx)] || '').trim() : '';
+    
+    if (phone.length >= 10) {
+      contacts.push({ phone, name: name || '', raw, status: 'pending', msgId: '', error: '' });
+    }
+  }
+
+  updateStats();
+  renderPreview();
+  document.getElementById('statsSection').style.display = 'block';
+  document.getElementById('costContacts').textContent = contacts.length.toLocaleString();
+  document.getElementById('costAmount').textContent = '$' + (contacts.length * 0.0125).toFixed(2);
+  updateLoteSelector();
+  showToast('✓ ' + contacts.length.toLocaleString() + ' contactos válidos cargados · ' + Math.ceil(contacts.length/1000) + ' lotes de 1,000', 'success');
+}
+
+// Store all rows globally for remapping
+let allStoredRows = [];
+
+function remapContacts() {
+  if (allStoredRows.length > 0) parseContactsFromRows(allStoredRows);
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent   = contacts.length.toLocaleString();
+  document.getElementById('statValid').textContent   = contacts.filter(c=>c.status!=='error').length.toLocaleString();
+  document.getElementById('statSent').textContent    = contacts.filter(c=>c.status==='sent').length.toLocaleString();
+  document.getElementById('statErrors').textContent  = contacts.filter(c=>c.status==='error').length.toLocaleString();
+}
+
+function renderPreview() {
+  const preview = contacts.slice(0, 50);
+  document.getElementById('previewCount').textContent = '(mostrando primeros 50 de ' + contacts.length.toLocaleString() + ')';
+  document.getElementById('phonePreview').innerHTML = preview.map(c => `
+    <div class="phone-row">
+      <span>${c.name ? c.name + ' · ' : ''}${c.phone}</span>
+      <span class="phone-status ps-${c.status}">${statusLabel(c)}</span>
+    </div>`).join('');
+}
+
+function statusLabel(c) {
+  if (c.status==='sent') return '✓ enviado';
+  if (c.status==='error') return '✗ ' + (c.error||'error').substring(0,30);
+  if (c.status==='skipped') return '— omitido';
+  return '⏳ pendiente';
+}
+
+function updateTemplateName() {
+  const sel = document.getElementById('templateSelect').value;
+  document.getElementById('customTemplateGroup').style.display = sel === 'custom' ? 'block' : 'none';
+}
+
+// ── SEND ──────────────────────────────────────────────────
+async function startSending() {
+  if (contacts.length === 0) { showToast('Primero carga un archivo de contactos', 'error'); return; }
+  const token = document.getElementById('apiToken').value.trim();
+  const phoneId = document.getElementById('phoneNumberId').value.trim();
+  if (!token || !phoneId) { showToast('Falta token o Phone Number ID', 'error'); return; }
+
+  const templateName = document.getElementById('templateSelect').value === 'custom'
+    ? document.getElementById('customTemplateName').value.trim()
+    : document.getElementById('templateSelect').value;
+  const lang = document.getElementById('langSelect').value;
+  const delay = parseInt(document.getElementById('rateSelect').value);
+
+  if (!templateName) { showToast('Selecciona o escribe el nombre del template', 'error'); return; }
+
+  sending = true;
+  stopFlag = false;
+  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('stopBtn').style.display = 'inline-flex';
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('logBox').style.display = 'block';
+
+  const pending = getLoteContacts();
+  let sent = 0, errors = 0;
+  const startTime = Date.now();
+
+  log('info', `Iniciando envío de ${pending.length.toLocaleString()} mensajes · template: ${templateName} · idioma: ${lang}`);
+
+  for (let i = 0; i < pending.length; i++) {
+    if (stopFlag) { log('warn', 'Envío detenido por el usuario en ' + i + ' de ' + pending.length); break; }
+
+    const c = pending[i];
+    // Get parameter values from UI
+    const paramValues = getTemplateParams(c);
+    const result = await sendTemplate(c.phone, templateName, lang, token, phoneId, paramValues);
+
+    if (result.success) {
+      c.status = 'sent';
+      c.msgId  = result.messageId;
+      sent++;
+      if (i < 5 || i % 100 === 0) log('ok', `[${i+1}] ${c.phone}${c.name?' ('+c.name+')':''} · ID: ${result.messageId.substring(0,20)}...`);
+    } else {
+      c.status = 'error';
+      c.error  = result.error;
+      errors++;
+      log('err', `[${i+1}] ${c.phone} · ${result.error.substring(0,60)}`);
+    }
+
+    // Update progress
+    const pct = Math.round(((i+1)/pending.length)*100);
+    const elapsed = (Date.now()-startTime)/1000;
+    const rate = (i+1)/elapsed;
+    const eta  = Math.round((pending.length-i-1)/rate);
+    document.getElementById('progressFill').style.width  = pct + '%';
+    document.getElementById('progressPct').textContent   = pct + '%';
+    document.getElementById('progressDetail').textContent = `${(i+1).toLocaleString()} de ${pending.length.toLocaleString()} · ✓${sent} ✗${errors}`;
+    document.getElementById('progressETA').textContent   = `ETA: ${eta>60?Math.round(eta/60)+'min':eta+'seg'}`;
+
+    // Update stats every 10 messages
+    if (i % 10 === 0) { updateStats(); renderPreview(); }
+
+    await sleep(delay);
+  }
+
+  // Final
+  sending = false;
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('stopBtn').style.display = 'none';
+  document.getElementById('progressTitle').textContent = `✓ Completado — ${sent.toLocaleString()} enviados · ${errors} errores`;
+  updateStats();
+  renderPreview();
+  log('info', `── Resumen: ${sent} enviados · ${errors} errores · costo ~$${(sent*0.0125).toFixed(2)} USD ──`);
+  showToast(`✓ Campaña completada · ${sent.toLocaleString()} mensajes enviados · $${(sent*0.0125).toFixed(2)}`, 'success');
+}
+
+function stopSending() {
+  stopFlag = true;
+  document.getElementById('stopBtn').disabled = true;
+  showToast('Deteniendo envío...', 'success');
+}
+
+async function testSingleContact() {
+  const token = document.getElementById('apiToken').value.trim();
+  const phoneId = document.getElementById('phoneNumberId').value.trim();
+  const templateName = document.getElementById('templateSelect').value === 'custom'
+    ? document.getElementById('customTemplateName').value.trim()
+    : document.getElementById('templateSelect').value;
+  const lang = document.getElementById('langSelect').value;
+
+  if (!token || !phoneId || !templateName) { showToast('Completa token, Phone Number ID y template', 'error'); return; }
+  if (contacts.length === 0) { showToast('Carga un archivo primero', 'error'); return; }
+
+  const c = contacts[0];
+  showToast('Enviando prueba a ' + c.phone + '...', 'success');
+  document.getElementById('logBox').style.display = 'block';
+  log('info', 'Prueba: enviando a ' + c.phone);
+
+  // Get parameter values from UI
+    const paramValues = getTemplateParams(c);
+    const result = await sendTemplate(c.phone, templateName, lang, token, phoneId, paramValues);
+  if (result.success) {
+    c.status = 'sent';
+    c.msgId  = result.messageId;
+    log('ok', '✓ Enviado exitosamente · Message ID: ' + result.messageId);
+    showToast('✓ Prueba exitosa · ' + c.phone, 'success');
+    updateStats(); renderPreview();
+  } else {
+    log('err', '✗ Error: ' + result.error);
+    showToast('✗ Error: ' + result.error, 'error');
+  }
+}
+
+async function sendTemplate(phone, templateName, lang, token, phoneId, params) {
+  // Clean phone — digits only
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  const templateObj = { 
+    name: templateName.trim().toLowerCase(), 
+    language: { code: lang.trim() } 
+  };
+  
+  // Only add components if there are actual non-empty params
+  const validParams = (params || []).filter(p => p && p.trim().length > 0);
+  if (validParams.length > 0) {
+    templateObj.components = [{
+      type: 'body',
+      parameters: validParams.map(p => ({ type: 'text', text: p.trim() }))
+    }];
+  }
+
+  const body = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: cleanPhone,
+    type: 'template',
+    template: templateObj
+  };
+  try {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.messages && data.messages[0]) return { success: true, messageId: data.messages[0].id };
+    return { success: false, error: data.error?.message || JSON.stringify(data) };
+  } catch(e) {
+    return { success: false, error: e.message };
+  }
+}
+
+function exportResults() {
+  if (contacts.length === 0) { showToast('No hay resultados para exportar', 'error'); return; }
+  const rows = [['Phone','Name','Status','Message ID','Error']];
+  contacts.forEach(c => rows.push([c.phone, c.name, c.status, c.msgId, c.error]));
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Results');
+  XLSX.writeFile(wb, 'rica_pro_campaign_results_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  showToast('✓ Resultados exportados', 'success');
+}
+
+// ── UTILITIES ─────────────────────────────────────────────
+function addParam() {
+  const list = document.getElementById('paramList');
+  const idx = list.children.length + 1;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;align-items:center;gap:8px;';
+  div.innerHTML = `
+    <span style="font-family:var(--mono);font-size:12px;color:var(--accent);min-width:30px;">{{${idx}}}</span>
+    <input type="text" class="form-input param-input" placeholder="valor para parámetro ${idx} · usa {nombre} para el nombre" style="flex:1;">
+    <button onclick="this.parentElement.remove();renumberParams()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;">×</button>
+  `;
+  list.appendChild(div);
+}
+
+function clearParams() {
+  document.getElementById('paramList').innerHTML = '';
+}
+
+function renumberParams() {
+  const inputs = document.querySelectorAll('.param-input');
+  inputs.forEach((inp, i) => {
+    inp.parentElement.querySelector('span').textContent = '{{' + (i+1) + '}}';
+    inp.placeholder = 'valor para parámetro ' + (i+1);
+  });
+}
+
+function updateLoteSelector() {
+  const size = document.getElementById('batchSize').value;
+  const loteGroup = document.getElementById('loteGroup');
+  const loteSelect = document.getElementById('loteSelect');
+  
+  if (size === 'all' || contacts.length === 0) {
+    loteGroup.style.display = size === 'all' ? 'none' : 'block';
+    loteSelect.innerHTML = '<option value="0">Lote único — todos los contactos</option>';
+    updateLoteInfo();
+    return;
+  }
+
+  loteGroup.style.display = 'block';
+  const batchSize = parseInt(size);
+  const totalLotes = Math.ceil(contacts.length / batchSize);
+  
+  loteSelect.innerHTML = Array.from({length: totalLotes}, (_, i) => {
+    const start = i * batchSize + 1;
+    const end = Math.min((i + 1) * batchSize, contacts.length);
+    return `<option value="${i}">Lote ${i+1} — contactos ${start.toLocaleString()} a ${end.toLocaleString()}</option>`;
+  }).join('');
+  
+  updateLoteInfo();
+}
+
+function updateLoteInfo() {
+  const size = document.getElementById('batchSize').value;
+  const loteIdx = parseInt(document.getElementById('loteSelect').value) || 0;
+  
+  if (size === 'all' || contacts.length === 0) {
+    document.getElementById('loteInfo').textContent = contacts.length.toLocaleString() + ' contactos';
+    document.getElementById('loteCost').textContent = '$' + (contacts.length * 0.0125).toFixed(2);
+    document.getElementById('costContacts').textContent = contacts.length.toLocaleString();
+    document.getElementById('costAmount').textContent = '$' + (contacts.length * 0.0125).toFixed(2);
+    return;
+  }
+  
+  const batchSize = parseInt(size);
+  const start = loteIdx * batchSize;
+  const end = Math.min(start + batchSize, contacts.length);
+  const count = end - start;
+  
+  document.getElementById('loteInfo').textContent = 
+    'Contactos ' + (start+1).toLocaleString() + ' – ' + end.toLocaleString() + 
+    ' (' + count.toLocaleString() + ' contactos)';
+  document.getElementById('loteCost').textContent = '$' + (count * 0.0125).toFixed(2);
+  document.getElementById('costContacts').textContent = count.toLocaleString();
+  document.getElementById('costAmount').textContent = '$' + (count * 0.0125).toFixed(2);
+}
+
+function getLoteContacts() {
+  const size = document.getElementById('batchSize').value;
+  if (size === 'all') return contacts.filter(c => c.status === 'pending');
+  
+  const batchSize = parseInt(size);
+  const loteIdx = parseInt(document.getElementById('loteSelect').value) || 0;
+  const start = loteIdx * batchSize;
+  const end = Math.min(start + batchSize, contacts.length);
+  return contacts.slice(start, end).filter(c => c.status === 'pending');
+}
+
+function getTemplateParams(contact) {
+  // Collect parameter values from the param inputs
+  const paramInputs = document.querySelectorAll('.param-input');
+  if (!paramInputs || paramInputs.length === 0) return [];
+  return Array.from(paramInputs).map(inp => {
+    let val = inp.value.trim();
+    // Replace placeholders with contact data
+    val = val.replace('{nombre}', contact.name ? contact.name.split(' ')[0] : 'amiga');
+    val = val.replace('{telefono}', contact.phone);
+    return val;
+  });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function log(type, msg) {
+  const box = document.getElementById('logBox');
+  const time = new Date().toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const colors = {ok:'log-ok', err:'log-err', info:'log-info', warn:'log-warn'};
+  box.innerHTML += `<div class="${colors[type]||'log-info'}">[${time}] ${msg}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => { t.className = 'toast'; }, 4000);
+}
+</script>
+</body>
+</html>
