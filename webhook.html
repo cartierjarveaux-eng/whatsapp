@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Rica Pro Webhook</title></head>
+<body>
+<script>
+// This page handles Meta webhook verification and stores
+// incoming messages to localStorage for the CRM to pick up
+
+const VERIFY_TOKEN = 'ricapro2026';
+
+// Parse URL params for webhook verification
+const params = new URLSearchParams(window.location.search);
+const mode = params.get('hub.mode');
+const token = params.get('hub.verify_token');
+const challenge = params.get('hub.challenge');
+
+if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+  // Respond with challenge for Meta verification
+  document.write(challenge);
+} else {
+  document.write('Rica Pro Webhook Active');
+}
+
+// Store any POST data (incoming messages) to localStorage
+// So the CRM can pick them up via polling
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'whatsapp_message') {
+    try {
+      const existing = JSON.parse(localStorage.getItem('rp_incoming_messages') || '[]');
+      existing.push(e.data.payload);
+      localStorage.setItem('rp_incoming_messages', JSON.stringify(existing));
+    } catch(err){}
+  }
+});
+</script>
+</body>
+</html>

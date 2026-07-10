@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rica Pro CRM — Live WhatsApp</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#0d0f12;--surface:#161a20;--surface2:#1e242c;--surface3:#252d38;
+    --border:#2a3240;--border2:#35404f;
+    --accent:#25d366;--accent-dim:#1a9e4a;--accent-glow:rgba(37,211,102,0.12);
+    --text:#e8edf2;--text2:#8a97a8;--text3:#4d5a6b;
+    --danger:#e05252;--warn:#e09c30;--info:#3b82f6;
+    --sent-bg:#1a3a26;--recv-bg:#1e242c;
+    --font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+    --radius:12px;--radius-sm:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:14px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;gap:16px;}
+  .logo-pill{display:flex;align-items:center;gap:8px;background:var(--accent-glow);border:1px solid var(--accent-dim);border-radius:20px;padding:4px 12px 4px 8px;}
+  .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+  .logo-text{font-size:13px;font-weight:600;color:var(--accent);}
+  .phone-badge{font-family:var(--mono);font-size:12px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px 8px;}
+  .api-status{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500;}
+  .api-status.live{background:rgba(37,211,102,0.15);color:var(--accent);}
+  .api-status.error{background:rgba(224,82,82,0.15);color:var(--danger);}
+  .topbar-right{display:flex;align-items:center;gap:10px;}
+  .top-stat{display:flex;flex-direction:column;align-items:flex-end;font-size:11px;color:var(--text3);}
+  .top-stat strong{font-size:14px;font-weight:600;color:var(--text);}
+  .top-btn{padding:6px 14px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;font-family:var(--font);transition:all 0.15s;}
+  .top-btn:hover{background:var(--surface3);border-color:var(--accent-dim);}
+  .top-btn.primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600;}
+  .main{display:flex;flex:1;overflow:hidden;}
+  .sidebar{width:320px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+  .sidebar-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .search-wrap{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0 10px;gap:8px;margin-bottom:10px;}
+  .search-wrap input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:13px;padding:8px 0;}
+  .search-wrap input::placeholder{color:var(--text3);}
+  .filter-row{display:flex;gap:6px;}
+  .filter-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--text2);cursor:pointer;font-family:var(--font);transition:all 0.15s;}
+  .filter-btn.active{background:var(--accent-glow);border-color:var(--accent-dim);color:var(--accent);}
+  .contact-list{flex:1;overflow-y:auto;}
+  .contact-list::-webkit-scrollbar{width:4px;}
+  .contact-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+  .contact-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;}
+  .contact-item:hover{background:var(--surface2);}
+  .contact-item.active{background:var(--surface3);border-left:2px solid var(--accent);}
+  .avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;flex-shrink:0;position:relative;}
+  .status-dot{position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;border:2px solid var(--surface);}
+  .status-dot.active{background:var(--accent);}
+  .status-dot.expiring{background:var(--warn);}
+  .status-dot.cold{background:var(--text3);}
+  .contact-info{flex:1;min-width:0;}
+  .contact-name{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .contact-preview{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+  .window-bar{height:3px;border-radius:2px;margin-top:6px;background:var(--border);overflow:hidden;}
+  .window-fill{height:100%;border-radius:2px;}
+  .contact-meta{text-align:right;flex-shrink:0;}
+  .contact-time{font-size:11px;color:var(--text3);}
+  .unread-badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#000;font-size:10px;font-weight:700;margin-top:4px;}
+  .chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+  .chat-header{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+  .chat-header-info{flex:1;}
+  .chat-header-name{font-weight:600;font-size:15px;}
+  .chat-header-status{font-size:12px;color:var(--text2);margin-top:1px;display:flex;align-items:center;gap:6px;}
+  .window-countdown{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:20px;}
+  .window-countdown.ok{background:rgba(37,211,102,0.12);color:var(--accent);}
+  .window-countdown.warn{background:rgba(224,156,48,0.12);color:var(--warn);}
+  .window-countdown.dead{background:rgba(224,82,82,0.12);color:var(--danger);}
+  .chat-actions{display:flex;gap:8px;}
+  .icon-btn{width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+  .icon-btn:hover{background:var(--surface3);color:var(--text);}
+  .chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:6px;}
+  .chat-messages::-webkit-scrollbar{width:4px;}
+  .chat-messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+  .msg-row{display:flex;}
+  .msg-row.sent{justify-content:flex-end;}
+  .msg-row.recv{justify-content:flex-start;}
+  .bubble{max-width:72%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;}
+  .bubble.sent{background:var(--sent-bg);border-bottom-right-radius:3px;}
+  .bubble.recv{background:var(--recv-bg);border:1px solid var(--border);border-bottom-left-radius:3px;}
+  .bubble.template{border:1px solid var(--accent-dim);background:rgba(37,211,102,0.06);}
+  .bubble-meta{font-size:10px;color:var(--text3);margin-top:4px;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:4px;}
+  .check.read{color:var(--accent);}
+  .template-tag{font-size:10px;font-family:var(--mono);color:var(--accent);background:var(--accent-glow);padding:1px 6px;border-radius:3px;margin-bottom:4px;display:inline-block;}
+  .date-divider{text-align:center;font-size:11px;color:var(--text3);margin:12px 0;display:flex;align-items:center;gap:10px;}
+  .date-divider::before,.date-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+  .chat-input-area{padding:14px 20px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;}
+  .quick-replies{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+  .qr-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:var(--font);transition:all 0.15s;}
+  .qr-btn:hover{border-color:var(--accent-dim);color:var(--accent);background:var(--accent-glow);}
+  .input-row{display:flex;gap:10px;align-items:flex-end;}
+  .msg-input{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--font);font-size:13px;padding:10px 14px;resize:none;outline:none;line-height:1.5;min-height:42px;max-height:120px;transition:border-color 0.15s;}
+  .msg-input:focus{border-color:var(--accent-dim);}
+  .send-btn{width:42px;height:42px;border-radius:var(--radius-sm);background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;}
+  .send-btn:hover{background:#2eef75;}
+  .send-btn:disabled{background:var(--surface3);cursor:not-allowed;}
+  .right-panel{width:280px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+  .right-panel::-webkit-scrollbar{width:4px;}
+  .right-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+  .panel-section{padding:16px;border-bottom:1px solid var(--border);}
+  .panel-label{font-size:10px;font-weight:600;letter-spacing:0.08em;color:var(--text3);text-transform:uppercase;margin-bottom:10px;}
+  .info-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .info-key{font-size:12px;color:var(--text2);}
+  .info-val{font-size:12px;font-weight:500;color:var(--text);text-align:right;}
+  .info-val.accent{color:var(--accent);}
+  .info-val.warn{color:var(--warn);}
+  .info-val.danger{color:var(--danger);}
+  .window-ring{display:flex;align-items:center;justify-content:center;margin:8px 0;}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .mini-stat{background:var(--surface2);border-radius:var(--radius-sm);padding:10px;border:1px solid var(--border);}
+  .mini-stat-val{font-size:20px;font-weight:600;color:var(--text);}
+  .mini-stat-label{font-size:10px;color:var(--text3);margin-top:2px;}
+  .empty-chat{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text3);}
+  .empty-chat svg{opacity:0.3;}
+  .empty-inbox{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px;text-align:center;}
+  .empty-inbox svg{opacity:0.2;}
+  .empty-inbox h3{font-size:15px;font-weight:600;color:var(--text2);}
+  .empty-inbox p{font-size:12px;color:var(--text3);line-height:1.6;}
+  .webhook-box{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px;text-align:left;width:100%;}
+  .webhook-box code{font-family:var(--mono);font-size:10px;color:var(--accent);word-break:break-all;}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;z-index:200;display:none;max-width:320px;}
+  .toast.show{display:block;}
+  .toast.success{border-color:var(--accent-dim);color:var(--accent);}
+  .toast.error{border-color:var(--danger);color:var(--danger);}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);width:520px;max-height:85vh;overflow-y:auto;padding:24px;}
+  .modal h3{font-size:16px;font-weight:600;margin-bottom:4px;}
+  .modal p{font-size:13px;color:var(--text2);margin-bottom:16px;}
+  .form-group{margin-bottom:14px;}
+  .form-label{font-size:12px;color:var(--text2);margin-bottom:6px;display:block;}
+  .form-input,.form-select{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:13px;padding:8px 12px;outline:none;transition:border-color 0.15s;}
+  .form-input:focus,.form-select:focus{border-color:var(--accent-dim);}
+  .form-select option{background:var(--surface2);}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+  .btn-cancel{padding:8px 16px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;font-family:var(--font);font-size:13px;}
+  .btn-launch{padding:8px 20px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:#000;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;}
+  .step-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;}
+  .step-num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#000;font-size:11px;font-weight:700;align-items:center;justify-content:center;margin-right:8px;}
+  .copy-btn{font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--border2);background:var(--surface3);color:var(--text2);cursor:pointer;font-family:var(--font);}
+  .copy-btn:hover{color:var(--accent);border-color:var(--accent-dim);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="logo-pill"><div class="logo-dot"></div><span class="logo-text">Rica Pro CRM</span></div>
+    <span class="phone-badge">+57 301 688 0127</span>
+    <span id="apiStatusBadge" class="api-status live">⚡ API Live · Rica Pro</span>
+  </div>
+  <div class="topbar-right">
+    <div class="top-stat"><strong id="activeCount">0</strong><span>activos</span></div>
+    <div class="top-stat"><strong id="expiringCount" style="color:var(--warn)">0</strong><span>vencen</span></div>
+    <div class="top-stat"><strong id="coldCount" style="color:var(--text3)">0</strong><span>frios</span></div>
+    <button class="top-btn" onclick="openModal('webhook')">🔗 Webhook Setup</button>
+    <button class="top-btn" onclick="openModal('msgEditor')">✏️ Mensajes</button>
+    <button class="top-btn primary" onclick="window.open('bulk_sender.html','_blank')">📤 Bulk Sender</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Buscar contacto..." id="searchInput" oninput="renderContacts()">
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)">Todos</button>
+        <button class="filter-btn" onclick="setFilter('active',this)">Activos</button>
+        <button class="filter-btn" onclick="setFilter('expiring',this)">Vencen</button>
+        <button class="filter-btn" onclick="setFilter('cold',this)">Frios</button>
+        <button class="filter-btn" onclick="refreshContacts()" style="margin-left:auto;color:var(--accent)">↻</button>
+      </div>
+    </div>
+    <div class="contact-list" id="contactList"></div>
+  </div>
+
+  <div class="chat-area">
+    <div class="empty-chat" id="emptyState">
+      <div class="empty-inbox">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <h3>Bandeja de entrada real</h3>
+        <p>Los mensajes de tus clientes aparecerán aquí automáticamente cuando configures el webhook de Meta.</p>
+        <div class="webhook-box">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Tu URL de webhook:</div>
+          <code>https://cartierjarveaux-eng.github.io/whatsapp/webhook</code>
+        </div>
+        <button class="top-btn" onclick="openModal('webhook')" style="margin-top:8px;">🔗 Configurar Webhook</button>
+      </div>
+    </div>
+    <div id="chatView" style="display:none;flex-direction:column;height:100%;">
+      <div class="chat-header">
+        <div class="avatar" id="chatAvatar" style="width:36px;height:36px;font-size:13px;"></div>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="chatName"></div>
+          <div class="chat-header-status">
+            <span id="chatPhone" style="font-family:var(--mono);font-size:11px;"></span>
+            <span class="window-countdown" id="windowCountdown"></span>
+          </div>
+        </div>
+        <div class="chat-actions">
+          <button class="icon-btn" title="Enviar template" onclick="openTemplateSelector()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </button>
+          <button class="icon-btn" title="Marcar convertida" onclick="markConverted()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <button class="icon-btn" title="Lista fría" onclick="markCold()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </button>
+          <button class="icon-btn" title="Eliminar contacto" onclick="deleteContact()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-area">
+        <div class="quick-replies" id="quickReplies"></div>
+        <div class="input-row">
+          <textarea class="msg-input" id="msgInput" placeholder="Escribe un mensaje... (Enter para enviar)" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendRealMessage()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel" id="rightPanel" style="display:none;">
+    <div class="panel-section">
+      <div class="panel-label">Ventana 24h</div>
+      <div class="window-ring">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#2a3240" stroke-width="8"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#25d366" stroke-width="8" stroke-dasharray="251.2" id="windowRing" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 50 50)"/>
+          <text x="50" y="48" text-anchor="middle" fill="#e8edf2" font-size="16" font-weight="600" font-family="JetBrains Mono,monospace" id="ringHours">--</text>
+          <text x="50" y="62" text-anchor="middle" fill="#4d5a6b" font-size="9" font-family="Inter,sans-serif">hrs libres</text>
+        </svg>
+      </div>
+      <div class="info-row"><span class="info-key">Último mensaje</span><span class="info-val accent" id="lastReplyTime">--</span></div>
+      <div class="info-row"><span class="info-key">Ventana vence</span><span class="info-val warn" id="windowExpires">--</span></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Contacto</div>
+      <div class="info-row"><span class="info-key">Nombre</span><span class="info-val" id="pName">--</span></div>
+      <div class="info-row"><span class="info-key">Teléfono</span><span class="info-val" id="pPhone" style="font-family:var(--mono);font-size:11px">--</span></div>
+      <div class="info-row"><span class="info-key">Estado</span><span class="info-val" id="pStatus">--</span></div>
+      <div class="info-row"><span class="info-key">Primer contacto</span><span class="info-val" id="pFirst">--</span></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Respuestas rápidas</div>
+      <div style="display:flex;flex-direction:column;gap:6px;" id="savedReplies"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- WEBHOOK SETUP MODAL -->
+<div class="modal-overlay" id="webhookModal">
+  <div class="modal" style="width:580px;">
+    <h3>🔗 Configurar Webhook de Meta</h3>
+    <p>El webhook permite que los mensajes de tus clientes aparezcan automáticamente en el CRM cuando te escriben.</p>
+
+    <div class="step-box">
+      <span class="step-num">1</span><strong style="font-size:13px;">Ir a Meta for Developers</strong>
+      <p style="font-size:12px;color:var(--text2);margin-top:8px;">Ve a tu app Database Messages:</p>
+      <code style="font-family:var(--mono);font-size:11px;color:var(--accent);display:block;margin-top:6px;">https://developers.facebook.com/apps/576150695453849/whatsapp-business/wa-dev-console/</code>
+    </div>
+
+    <div class="step-box">
+      <span class="step-num">2</span><strong style="font-size:13px;">Configurar Webhook URL</strong>
+      <p style="font-size:12px;color:var(--text2);margin-top:8px;">En la sección "Webhook", pega esta URL:</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <code style="font-family:var(--mono);font-size:11px;color:var(--accent);flex:1;background:var(--bg);padding:8px;border-radius:4px;display:block;" id="webhookUrl">https://cartierjarveaux-eng.github.io/whatsapp/webhook.html</code>
+        <button class="copy-btn" onclick="copyWebhook()">Copiar</button>
+      </div>
+    </div>
+
+    <div class="step-box">
+      <span class="step-num">3</span><strong style="font-size:13px;">Verify Token</strong>
+      <p style="font-size:12px;color:var(--text2);margin-top:8px;">En el campo "Verify token" usa exactamente:</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <code style="font-family:var(--mono);font-size:12px;color:var(--accent);flex:1;background:var(--bg);padding:8px;border-radius:4px;display:block;">ricapro2026</code>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText('ricapro2026');showToast('✓ Copiado','success')">Copiar</button>
+      </div>
+    </div>
+
+    <div class="step-box">
+      <span class="step-num">4</span><strong style="font-size:13px;">Suscribir a mensajes</strong>
+      <p style="font-size:12px;color:var(--text2);margin-top:8px;">En "Webhook fields" activa:</p>
+      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+        <span style="font-family:var(--mono);font-size:11px;background:var(--accent-glow);color:var(--accent);padding:3px 8px;border-radius:4px;">messages</span>
+        <span style="font-family:var(--mono);font-size:11px;background:var(--accent-glow);color:var(--accent);padding:3px 8px;border-radius:4px;">message_deliveries</span>
+        <span style="font-family:var(--mono);font-size:11px;background:var(--accent-glow);color:var(--accent);padding:3px 8px;border-radius:4px;">message_reads</span>
+      </div>
+    </div>
+
+    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.3);border-radius:var(--radius-sm);padding:12px;font-size:12px;color:#93c5fd;margin-top:4px;">
+      ⚠️ <strong>Nota importante:</strong> GitHub Pages no puede recibir webhooks directamente porque es un sitio estático. Para recibir mensajes en tiempo real necesitas un servidor backend. La solución más fácil y gratuita es usar <strong>Make.com</strong> (antes Integromat) como intermediario — te configuro el flujo completo si quieres.
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('webhook')">Cerrar</button>
+      <button class="btn-launch" onclick="window.open('https://developers.facebook.com/apps/576150695453849/whatsapp-business/wa-dev-console/','_blank')">Abrir Meta Developer →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MESSAGE EDITOR MODAL -->
+<div class="modal-overlay" id="msgEditorModal">
+  <div class="modal" style="width:600px;max-height:90vh;overflow-y:auto;">
+    <h3>✏️ Editor de mensajes automáticos</h3>
+    <p>6 mensajes en rotación cada 20 horas. Usa {nombre} para personalizar.</p>
+    <div id="msgEditorList" style="display:flex;flex-direction:column;gap:12px;"></div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-top:12px;">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;">Variable disponible</div>
+      <span style="font-family:var(--mono);font-size:11px;background:var(--accent-glow);color:var(--accent);padding:2px 8px;border-radius:4px;">{nombre}</span>
+      <span style="font-size:11px;color:var(--text3);margin-left:8px;">primer nombre del contacto</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('msgEditor')">Cancelar</button>
+      <button class="btn-launch" onclick="saveMsgEditor()">💾 Guardar mensajes</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATE SELECTOR -->
+<div class="modal-overlay" id="templateModal">
+  <div class="modal">
+    <h3>📋 Enviar template aprobado</h3>
+    <p>Reabre la ventana de 24 horas para este contacto.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;" id="templateList"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('template')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────
+const CONFIG = {
+  phoneNumberId: '1194403527087007',
+  wabaId: '286199243415870',
+  phone: '+573016880127',
+  token: 'EAAIMAYmKJJkBR6AfkoSGfZAoUDbfX8TZCC5LHRPszdaizyLIw7Icx60SsCpYWaRYt009VAxf0fF83RIwI8RCeq62uEOVQ2NPGDIbus68SdJRvwltQUiZCaqP5JIp8Kf9D3jiCLpkzMKarUdYWpgugaOnvhZBfsUOTRYSfSZBJGit9x1pMotGaHS9V5LLdzjfIWAZDZD',
+  apiBase: 'https://graph.facebook.com/v19.0'
+};
+
+const COLORS = ['#1a9e4a','#3b82f6','#9333ea','#e05252','#e09c30','#0891b2'];
+
+const QUICK_REPLIES_ES = [
+  '¿Tienen contraentrega?',
+  'Info de envío a Bogotá',
+  'Precio con descuento',
+  '¿Cómo hago el pedido?',
+  '¿Cuándo llega?',
+  'Sí, con gusto te ayudo 😊',
+  'Envío GRATIS a toda Colombia',
+  'Contraentrega disponible ✅'
+];
+
+let FREE_MSGS = [
+  '¡Hola {nombre}! 🌟 Oferta flash hoy: Colágeno Marino 500g por $58.000 COP con envío GRATIS. Solo 15 unidades. ¿Te apartamos una? Responde QUIERO',
+  'Buenos días {nombre} ☀️ Esta semana Creatina Pura 100g al 2x1 por $65.000. Envío gratis a toda Colombia. ¿Te interesa? https://ricapro.us',
+  '¡{nombre}! Nueva llegada 🆕 Proteína de Suero 1kg solo $89.000 con envío gratis. Contraentrega disponible. ¿Pedimos el tuyo?',
+  '{nombre}, tienes descuento de clienta frecuente: *15% OFF* en tu próximo pedido 🎁 Código: RICA15. Válido solo hoy.',
+  '¡Hola {nombre}! 💪 María de Medellín bajó 4kg en 6 semanas con Rica Pro. ¿Quieres su rutina gratis? Responde RUTINA',
+  '{nombre} ⏰ ÚLTIMA HORA: Colágeno + Vitamina C por $65.000 (normal $120.000). Solo hoy hasta las 8pm.',
+];
+
+// ── STATE ─────────────────────────────────────────────────
+let contacts = [];
+let activeContact = null;
+let currentFilter = 'all';
+
+// ── INIT ──────────────────────────────────────────────────
+function init() {
+  loadFromStorage();
+  loadSavedMessages();
+  renderContacts();
+  updateCounts();
+  testConnection();
+  // Poll for new messages every 30 seconds
+  setInterval(pollNewMessages, 30000);
+}
+
+// ── STORAGE ───────────────────────────────────────────────
+function saveToStorage() {
+  try { localStorage.setItem('rp_real_contacts', JSON.stringify(contacts)); } catch(e){}
+}
+
+function loadFromStorage() {
+  try {
+    const d = localStorage.getItem('rp_real_contacts');
+    if (d) {
+      contacts = JSON.parse(d);
+      // Only keep real contacts (not demo ones)
+      contacts = contacts.filter(c => !c.id.startsWith('demo_'));
+    }
+  } catch(e){ contacts = []; }
+}
+
+function loadSavedMessages() {
+  try {
+    const saved = localStorage.getItem('rp_free_messages');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      parsed.forEach((msg, i) => { if (msg && FREE_MSGS[i] !== undefined) FREE_MSGS[i] = msg; });
+    }
+  } catch(e){}
+}
+
+// ── REAL API ──────────────────────────────────────────────
+async function sendWhatsAppMessage(toPhone, messageText) {
+  const cleanPhone = toPhone.replace(/\D/g,'');
+  try {
+    const res = await fetch(`${CONFIG.apiBase}/${CONFIG.phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${CONFIG.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: cleanPhone,
+        type: 'text',
+        text: { preview_url: true, body: messageText }
+      })
+    });
+    const data = await res.json();
+    if (data.messages?.[0]) return { success: true, messageId: data.messages[0].id };
+    return { success: false, error: data.error?.message || JSON.stringify(data) };
+  } catch(e) { return { success: false, error: e.message }; }
+}
+
+async function testConnection() {
+  try {
+    const res = await fetch(`${CONFIG.apiBase}/${CONFIG.phoneNumberId}?fields=display_phone_number,verified_name&access_token=${CONFIG.token}`);
+    const data = await res.json();
+    if (data.display_phone_number) {
+      document.getElementById('apiStatusBadge').textContent = '⚡ API Live · ' + data.verified_name;
+      document.getElementById('apiStatusBadge').className = 'api-status live';
+    } else {
+      document.getElementById('apiStatusBadge').textContent = '✗ Error API';
+      document.getElementById('apiStatusBadge').className = 'api-status error';
+    }
+  } catch(e) {
+    document.getElementById('apiStatusBadge').textContent = '✗ Sin conexión';
+    document.getElementById('apiStatusBadge').className = 'api-status error';
+  }
+}
+
+// ── POLL FOR NEW MESSAGES ─────────────────────────────────
+async function pollNewMessages() {
+  // In production this would hit your webhook backend
+  // For now it refreshes from localStorage (updated by webhook.html)
+  try {
+    const incoming = localStorage.getItem('rp_incoming_messages');
+    if (!incoming) return;
+    const msgs = JSON.parse(incoming);
+    if (!msgs || msgs.length === 0) return;
+    msgs.forEach(msg => processIncomingMessage(msg));
+    localStorage.removeItem('rp_incoming_messages');
+  } catch(e){}
+}
+
+function processIncomingMessage(msg) {
+  const phone = msg.from;
+  let contact = contacts.find(c => c.phone.replace(/\D/g,'') === phone.replace(/\D/g,''));
+  if (!contact) {
+    contact = {
+      id: 'real_' + Date.now(),
+      name: msg.profile_name || phone,
+      phone: '+' + phone,
+      color: COLORS[contacts.length % COLORS.length],
+      lastReply: Date.now(),
+      hoursLeft: 24,
+      status: 'active',
+      attempts: 0,
+      preview: msg.text,
+      msgs: [],
+      stats: { msgs: 0, replies: 1, orders: 0 }
+    };
+    contacts.unshift(contact);
+    showToast('📩 Nuevo mensaje de ' + contact.name, 'success');
+  } else {
+    contact.lastReply = Date.now();
+    contact.hoursLeft = 24;
+    contact.status = 'active';
+    contact.preview = msg.text;
+    contact.stats.replies++;
+  }
+  contact.msgs.push({ dir:'recv', text: msg.text, time: Date.now(), status:'received' });
+  saveToStorage();
+  renderContacts();
+  updateCounts();
+  if (activeContact && activeContact.id === contact.id) renderMessages();
+}
+
+// ── SEND ──────────────────────────────────────────────────
+async function sendRealMessage() {
+  if (!activeContact) return;
+  const inp = document.getElementById('msgInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  inp.value = '';
+  const msg = { dir:'sent', text, time: Date.now(), status:'sending' };
+  activeContact.msgs.push(msg);
+  renderMessages();
+  if (activeContact.hoursLeft > 0) {
+    const result = await sendWhatsAppMessage(activeContact.phone, text);
+    if (result.success) {
+      msg.status = 'delivered';
+      msg.messageId = result.messageId;
+      activeContact.stats.msgs++;
+      showToast('✓ Enviado', 'success');
+    } else {
+      msg.status = 'error';
+      showToast('✗ ' + result.error, 'error');
+    }
+  } else {
+    msg.status = 'error';
+    showToast('⚠ Ventana vencida — envía un template primero', 'error');
+  }
+  activeContact.preview = text;
+  saveToStorage();
+  renderMessages();
+  renderContacts();
+  btn.disabled = false;
+}
+
+// ── CONTACTS ──────────────────────────────────────────────
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderContacts();
+}
+
+function renderContacts() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let list = contacts.filter(c => {
+    if (q && !c.name.toLowerCase().includes(q) && !c.phone.includes(q)) return false;
+    if (currentFilter === 'active') return c.status === 'active';
+    if (currentFilter === 'expiring') return c.status === 'expiring';
+    if (currentFilter === 'cold') return c.status === 'cold';
+    return true;
+  });
+
+  const el = document.getElementById('contactList');
+
+  if (list.length === 0) {
+    el.innerHTML = `<div style="padding:32px 16px;text-align:center;color:var(--text3);">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <div style="font-size:13px;margin-bottom:6px;">Sin contactos aún</div>
+      <div style="font-size:11px;line-height:1.6;">Los clientes aparecerán aquí cuando te escriban o cuando uses el Bulk Sender.</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(c => {
+    const pct = Math.min(100,(c.hoursLeft/24)*100);
+    const fc = c.hoursLeft > 4 ? '#25d366' : c.hoursLeft > 0 ? '#e09c30' : '#4d5a6b';
+    const init = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="contact-item${activeContact&&activeContact.id===c.id?' active':''}" onclick="openContact('${c.id}')">
+      <div class="avatar" style="background:${c.color}22;color:${c.color};width:40px;height:40px;font-size:14px;">
+        ${init}<span class="status-dot ${c.status}"></span>
+      </div>
+      <div class="contact-info">
+        <div class="contact-name">${c.name}</div>
+        <div class="contact-preview">${c.preview||''}</div>
+        <div class="window-bar"><div class="window-fill" style="width:${pct}%;background:${fc}"></div></div>
+      </div>
+      <div class="contact-meta">
+        <div class="contact-time">${fmtTime(c.lastReply)}</div>
+        <div style="font-size:10px;color:${fc};margin-top:4px;font-family:var(--mono)">${fmtHours(c.hoursLeft)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openContact(id) {
+  activeContact = contacts.find(c=>c.id===id);
+  if (!activeContact) return;
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('chatView').style.display = 'flex';
+  document.getElementById('rightPanel').style.display = 'flex';
+  const init = activeContact.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const av = document.getElementById('chatAvatar');
+  av.textContent = init;
+  av.style.cssText = `width:36px;height:36px;font-size:13px;background:${activeContact.color}22;color:${activeContact.color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;`;
+  document.getElementById('chatName').textContent = activeContact.name;
+  document.getElementById('chatPhone').textContent = activeContact.phone;
+  const hl = activeContact.hoursLeft;
+  const wc = document.getElementById('windowCountdown');
+  wc.textContent = hl > 0 ? fmtHours(hl) + ' libres' : 'Ventana vencida';
+  wc.className = 'window-countdown ' + (hl > 4 ? 'ok' : hl > 0 ? 'warn' : 'dead');
+  renderMessages();
+  renderRightPanel();
+  renderContacts();
+  document.getElementById('quickReplies').innerHTML = QUICK_REPLIES_ES.map(q=>`<button class="qr-btn" onclick="setInput('${q}')">${q}</button>`).join('');
+}
+
+function renderMessages() {
+  const el = document.getElementById('chatMessages');
+  if (!activeContact) return;
+  let html = '<div class="date-divider">Conversación</div>';
+  if (!activeContact.msgs || activeContact.msgs.length === 0) {
+    html += '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">Sin mensajes. Envía un template para iniciar.</div>';
+  }
+  (activeContact.msgs || []).forEach(m => {
+    const t = new Date(m.time).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    const statusIcon = m.dir==='sent'?(m.status==='delivered'?'<span class="check read">✓✓</span>':m.status==='sending'?'<span style="color:var(--text3);font-size:10px">⏱</span>':'<span style="color:var(--danger);font-size:10px">✗</span>'):'';
+    html += `<div class="msg-row ${m.dir}"><div class="bubble ${m.dir}${m.isTemplate?' template':''}">
+      ${m.isTemplate?`<div class="template-tag">📋 ${m.template}</div>`:''}
+      ${m.text.replace(/\n/g,'<br>').replace(/\*(.*?)\*/g,'<strong>$1</strong>')}
+      <div class="bubble-meta">${t} ${statusIcon}</div>
+    </div></div>`;
+  });
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderRightPanel() {
+  if (!activeContact) return;
+  const c = activeContact;
+  const hl = c.hoursLeft;
+  const pct = Math.min(100,hl/24*100);
+  document.getElementById('windowRing').style.strokeDashoffset = 251.2*(1-pct/100);
+  document.getElementById('windowRing').style.stroke = hl>4?'#25d366':hl>0?'#e09c30':'#4d5a6b';
+  document.getElementById('ringHours').textContent = hl>0?hl.toFixed(1):'0';
+  document.getElementById('lastReplyTime').textContent = fmtTime(c.lastReply);
+  const expires = new Date((c.lastReply||Date.now())+24*3600000);
+  document.getElementById('windowExpires').textContent = expires.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('pName').textContent = c.name;
+  document.getElementById('pPhone').textContent = c.phone;
+  document.getElementById('pStatus').textContent = {active:'🟢 Ventana activa',expiring:'🟡 Por vencer',cold:'⚫ Lista fría',converted:'🔵 Convertida'}[c.status]||c.status;
+  document.getElementById('pFirst').textContent = fmtTime(c.lastReply);
+  document.getElementById('savedReplies').innerHTML = QUICK_REPLIES_ES.slice(0,5).map(q=>`<button class="qr-btn" style="text-align:left;border-radius:var(--radius-sm);" onclick="setInput('${q}')">${q}</button>`).join('');
+}
+
+function updateCounts() {
+  document.getElementById('activeCount').textContent = contacts.filter(c=>c.status==='active').length;
+  document.getElementById('expiringCount').textContent = contacts.filter(c=>c.status==='expiring').length;
+  document.getElementById('coldCount').textContent = contacts.filter(c=>c.status==='cold').length;
+}
+
+function refreshContacts() { loadFromStorage(); renderContacts(); updateCounts(); showToast('↻ Actualizado','success'); }
+
+function markConverted() {
+  if (!activeContact) return;
+  activeContact.status = 'converted';
+  saveToStorage(); renderContacts(); updateCounts();
+  showToast('✓ ' + activeContact.name + ' marcada como convertida', 'success');
+}
+
+function markCold() {
+  if (!activeContact) return;
+  activeContact.status = 'cold';
+  activeContact.hoursLeft = 0;
+  saveToStorage(); renderContacts(); renderRightPanel(); updateCounts();
+  showToast(activeContact.name + ' movida a lista fría', 'success');
+}
+
+function deleteContact() {
+  if (!activeContact) return;
+  if (!confirm('¿Eliminar ' + activeContact.name + '?')) return;
+  contacts = contacts.filter(c=>c.id!==activeContact.id);
+  activeContact = null;
+  document.getElementById('chatView').style.display = 'none';
+  document.getElementById('rightPanel').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+  saveToStorage(); renderContacts(); updateCounts();
+}
+
+function openTemplateSelector() {
+  document.getElementById('templateList').innerHTML = [
+    {name:'rica_pro_bogota', desc:'Colágeno + productos · Bogotá', lang:'es'},
+    {name:'iso_whey', desc:'ISO Whey + productos', lang:'es'},
+  ].map(t=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;cursor:pointer;" onclick="sendTemplateToContact('${t.name}','${t.lang}')">
+    <div style="font-weight:500;font-size:13px;">${t.name}</div>
+    <div style="font-size:12px;color:var(--accent);margin-top:2px;">${t.desc}</div>
+  </div>`).join('');
+  openModal('template');
+}
+
+async function sendTemplateToContact(name, lang) {
+  closeModal('template');
+  if (!activeContact) return;
+  const cleanPhone = activeContact.phone.replace(/\D/g,'');
+  const templateObj = { name, language: { code: lang } };
+  if (name === 'rica_pro_bogota') {
+    templateObj.components = [{ type:'header', parameters:[{ type:'image', image:{ link:'https://i.imgur.com/ZVDtcic.jpg' }}]}];
+  }
+  try {
+    const res = await fetch(`${CONFIG.apiBase}/${CONFIG.phoneNumberId}/messages`, {
+      method:'POST',
+      headers:{'Authorization':`Bearer ${CONFIG.token}`,'Content-Type':'application/json'},
+      body: JSON.stringify({ messaging_product:'whatsapp', recipient_type:'individual', to:cleanPhone, type:'template', template:templateObj })
+    });
+    const data = await res.json();
+    if (data.messages?.[0]) {
+      activeContact.msgs.push({ dir:'sent', text:'[Template: '+name+']', time:Date.now(), isTemplate:true, template:name, status:'delivered' });
+      activeContact.lastReply = Date.now();
+      activeContact.hoursLeft = 24;
+      activeContact.status = 'active';
+      saveToStorage(); renderMessages(); renderRightPanel(); renderContacts(); updateCounts();
+      showToast('✓ Template enviado · ventana 24h abierta', 'success');
+    } else {
+      showToast('✗ ' + (data.error?.message||'Error'), 'error');
+    }
+  } catch(e) { showToast('✗ ' + e.message, 'error'); }
+}
+
+// ── MSG EDITOR ────────────────────────────────────────────
+function openMsgEditor() {
+  document.getElementById('msgEditorModal').classList.add('open');
+  setTimeout(() => {
+    const list = document.getElementById('msgEditorList');
+    if (!list) return;
+    list.innerHTML = FREE_MSGS.map((msg,i) => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:600;color:var(--accent);">Mensaje ${i+1}</span>
+          <span style="font-size:10px;color:var(--text3);">Envío ${(i+1)*20}h después</span>
+        </div>
+        <textarea id="msgEdit_${i}" style="width:100%;background:#0d0f12;border:1px solid #35404f;border-radius:6px;color:#e8edf2;font-family:Inter,sans-serif;font-size:12px;padding:8px;resize:vertical;min-height:90px;outline:none;line-height:1.6;" oninput="updateMsgPreview(${i})">${msg}</textarea>
+        <div style="margin-top:6px;background:#1a3a26;border-radius:6px;padding:8px;font-size:11px;color:#8a97a8;line-height:1.5;" id="msgPreview_${i}">${msg.replace('{nombre}','María')}</div>
+      </div>`).join('');
+  }, 50);
+}
+
+function updateMsgPreview(i) {
+  const val = document.getElementById('msgEdit_'+i).value;
+  document.getElementById('msgPreview_'+i).innerHTML = val.replace('{nombre}','María').replace(/\*(.*?)\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+}
+
+function saveMsgEditor() {
+  for (let i=0;i<FREE_MSGS.length;i++) {
+    const el = document.getElementById('msgEdit_'+i);
+    if (el&&el.value.trim()) FREE_MSGS[i]=el.value.trim();
+  }
+  try { localStorage.setItem('rp_free_messages',JSON.stringify(FREE_MSGS)); } catch(e){}
+  closeModal('msgEditor');
+  showToast('✓ Mensajes guardados','success');
+}
+
+// ── UTILITIES ─────────────────────────────────────────────
+function fmtTime(ts) {
+  if (!ts) return '--';
+  const d=new Date(ts),now=new Date();
+  if (d.toDateString()===now.toDateString()) return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'});
+}
+function fmtHours(h) {
+  if (!h||h<=0) return 'vencida';
+  if (h<1) return Math.round(h*60)+'min';
+  return h.toFixed(1)+'h';
+}
+function setInput(t) { document.getElementById('msgInput').value=t; document.getElementById('msgInput').focus(); }
+function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendRealMessage();} }
+function autoResize(el) { el.style.height='auto';el.style.height=Math.min(120,el.scrollHeight)+'px'; }
+function showToast(msg,type='success') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show '+type;
+  setTimeout(()=>{t.className='toast';},4000);
+}
+function openModal(name) { document.getElementById(name+'Modal').classList.add('open'); if(name==='msgEditor') openMsgEditor(); }
+function closeModal(name) { document.getElementById(name+'Modal').classList.remove('open'); }
+function copyWebhook() { navigator.clipboard.writeText(document.getElementById('webhookUrl').textContent); showToast('✓ URL copiada','success'); }
+
+init();
+</script>
+</body>
+</html>
